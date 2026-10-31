@@ -8,7 +8,10 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const { connectDB, getDBStatus } = require("./config/db");
 const demandRoutes = require("./routes/demandRoutes");
+const restaurantRoutes = require("./routes/restaurantRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
@@ -16,18 +19,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Initialize Database connection on boot
+connectDB();
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
     res.json({
         success: true,
         project: "FoodLoop AI (Anna)",
         message: "FoodLoop AI backend is running cleanly!",
+        database: getDBStatus() ? "connected" : "development_in_memory",
         timestamp: new Date().toISOString()
     });
 });
 
-// Demand prediction API routes
-app.use("/api/demand", demandRoutes);
+// Mount Routes
+app.use("/api/demand", demandRoutes);             // ML Demand Prediction API
+app.use("/api/restaurants", restaurantRoutes);   // Restaurant listings & Menus
+app.use("/api/orders", orderRoutes);             // Customer Order placement & tracking
 
 // 404 Handler for undefined routes
 app.use((req, res) => {
@@ -52,11 +61,12 @@ if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`====================================================`);
         console.log(` FoodLoop AI backend running on http://localhost:${PORT}`);
-        console.log(` Demand API available at: http://localhost:${PORT}/api/demand`);
-        console.log(` Health check: http://localhost:${PORT}/api/health`);
+        console.log(` • Health check: http://localhost:${PORT}/api/health`);
+        console.log(` • Restaurants:  http://localhost:${PORT}/api/restaurants`);
+        console.log(` • Orders:       http://localhost:${PORT}/api/orders`);
+        console.log(` • Demand ML:    http://localhost:${PORT}/api/demand`);
         console.log(`====================================================`);
     });
 }
 
 module.exports = app;
-

@@ -24,17 +24,18 @@ async function runEndToEndTest() {
     const pythonScript = path.join(projectRoot, "ml", "service", "app.py");
 
     console.log("[1/4] Spawning Python ML microservice...");
-    const pyProcess = spawn("python", [pythonScript], {
+    // Quote script path to handle directory names with spaces
+    const pyProcess = spawn(`python "${pythonScript}"`, {
         shell: true,
         env: { ...process.env, ML_PORT: "5001" },
         stdio: ["ignore", "pipe", "pipe"]
     });
 
     pyProcess.stdout.on("data", (data) => {
-        console.log(`[Python ML] ${data.toString().trim()}`);
+        // console.log(`[Python ML] ${data.toString().trim()}`);
     });
     pyProcess.stderr.on("data", (data) => {
-        console.error(`[Python ML ERR] ${data.toString().trim()}`);
+        // console.error(`[Python ML ERR] ${data.toString().trim()}`);
     });
 
     // Poll until Python ML microservice is ready (up to 10 seconds)
@@ -130,7 +131,6 @@ async function runEndToEndTest() {
 
     } finally {
         server.close();
-        // Gracefully kill Python process tree on Windows
         if (process.platform === "win32") {
             spawn("taskkill", ["/pid", pyProcess.pid, "/f", "/t"]);
         } else {
