@@ -1,97 +1,85 @@
 # FoodLoop AI (Anna — Anna He Parabrahma)
-## Platform Architecture & API Handbook
+## Full-Stack Architecture, APIs & Integration Guide
 
-FoodLoop AI connects restaurants and bakeries with customers to reduce commercial food waste while making meals affordable.
+FoodLoop AI connects restaurants and food businesses with customers to reduce commercial food waste while making meals affordable.
 
 ---
 
-## 1. Project Organization (Option 1: Modular Monorepo)
+## 1. Git Branch Roadmap & Team Division
+
+| Branch | Purpose | Status on Remote (`origin`) |
+| :--- | :--- | :--- |
+| `feature/demand-prediction` | Random Forest ML model & Flask microservice | Pushed to GitHub |
+| `feature/ai-ml-frontend` | Friend's React Frontend merged with Database | Pushed to GitHub |
+| `feature/rescue-food` | Surplus food listings, discount filters & AI hook | Pushed to GitHub |
+| `feature/paypal-checkout` | PayPal Sandbox order creation & capture | Pushed to GitHub |
+| `feature/full-integration` | Complete connected platform (UI + Backend + ML) | Pushed to GitHub |
+
+---
+
+## 2. Platform Architecture
 
 ```text
-Demand prdeiction/
-├── ml/                                 # [Phase 0] Machine Learning Component
-│   ├── data/
-│   │   ├── generate_data.py           # Historical sales simulator
-│   │   └── food_demand_data.csv       # 4,000 sales transactions
-│   ├── models/
-│   │   └── demand_model.joblib        # Trained Random Forest Regressor
-│   ├── src/
-│   │   ├── train.py                   # Training pipeline (MAE: 2.36, R²: 0.9255)
-│   │   └── predict.py                 # In-memory inference engine
-│   └── service/
-│       └── app.py                     # Python Flask microservice (Port 5001)
-│
-├── backend/                            # [Phase 1 & 2] Node.js & Express APIs
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── db.js                  # MongoDB Mongoose connection + In-Memory Fallback
-│   │   ├── models/                    # Data Models
-│   │   │   ├── User.js                # Customer & Restaurant accounts
-│   │   │   ├── Restaurant.js          # Restaurant profiles & addresses
-│   │   │   ├── FoodItem.js            # Standard dishes + Rescue surplus food
-│   │   │   └── Order.js               # Order placement & tracking
-│   │   ├── routes/                    # API Endpoints
-│   │   │   ├── demandRoutes.js        # /api/demand (calls ML service)
-│   │   │   ├── restaurantRoutes.js    # /api/restaurants (listings & menus)
-│   │   │   └── orderRoutes.js         # /api/orders (place orders & track status)
-│   │   ├── data/
-│   │   │   └── initialData.json       # Preloaded FoodLoop partner restaurants & menus
-│   │   ├── scripts/
-│   │   │   └── seed.js                # Populates MongoDB with sample data
-│   │   └── server.js                  # Express main server (Port 5000)
-│   ├── test_api.js                    # Basic backend endpoint test
-│   ├── test_order_flow.js             # Order Food integration test suite
-│   └── test_e2e.js                    # Complete ML + Backend integration test
-│
-├── .gitignore
-└── README.md
+       React + Vite Frontend (Port 5173)
+       [ Browse Menus · Rescue Deals · PayPal Checkout · AI Predictor ]
+                        │
+                        │ HTTP REST (Port 5000)
+                        ▼
+       Node.js + Express Backend
+       ├── /api/restaurants    -> Restaurant listings & Menus
+       ├── /api/orders         -> Order placement & tracking
+       ├── /api/rescue         -> Surplus food deals & urgency countdowns
+       ├── /api/payments       -> PayPal Sandbox Create & Capture Order
+       └── /api/demand         -> Forwards to Python ML service
+                        │
+                        │ HTTP REST (Port 5001)
+                        ▼
+       Python ML Microservice (Flask)
+       └── POST /predict       -> Scikit-Learn Random Forest Regressor
 ```
 
 ---
 
-## 2. API Reference
+## 3. How to Run the Complete FoodLoop AI Platform
 
-### A. Restaurants & Menus (`/api/restaurants`)
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/restaurants` | Browse all partner restaurants (supports `?cuisine=Indian&search=Darbar`) |
-| `GET` | `/api/restaurants/:id` | View specific restaurant profile & location |
-| `GET` | `/api/restaurants/:id/menu` | View restaurant menu items (supports `?vegetarian=true`) |
+### Step 1: Start Python ML Microservice (Terminal 1)
+```bash
+python ml/service/app.py
+```
+*Runs on `http://127.0.0.1:5001`.*
 
-### B. Food Orders (`/api/orders`)
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/orders` | Place a new food order (auto-calculates total amount) |
-| `GET` | `/api/orders` | List all orders |
-| `GET` | `/api/orders/:id` | View order details and payment status |
-| `PATCH` | `/api/orders/:id/status` | Update preparation status (`PREPARING`, `COMPLETED`, etc.) |
-
-### C. Demand Prediction AI (`/api/demand`)
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/demand/status` | Check Python ML microservice health |
-| `POST` | `/api/demand/predict` | Predict sales quantity for a single surplus item |
-| `POST` | `/api/demand/batch-predict`| Predict sales quantity for multiple surplus items |
-
----
-
-## 3. How to Run & Test
-
-### Run Express Backend:
+### Step 2: Start Express Backend (Terminal 2)
 ```bash
 cd backend
 node src/server.js
 ```
-The server will start on `http://localhost:5000`.
+*Runs on `http://localhost:5000`.*
 
-### Run Order Food Integration Tests:
+### Step 3: Start React Frontend (Terminal 3)
 ```bash
-cd backend
-node test_order_flow.js
+cd frontend
+npm run dev
 ```
+*Runs on `http://localhost:5173` (Open in browser to use the full app).*
 
-### Run Full End-to-End Test (Backend + ML Service):
+---
+
+## 4. Automated Verification Test Suites
+
+Inside the `backend/` directory, run any of the automated test suites:
+
 ```bash
 cd backend
+
+# Test 1: Order Food integration (Restaurants, Menus, Orders):
+node test_order_flow.js
+
+# Test 2: Rescue Food integration (Surplus items, Urgency sort, AI hook):
+node test_rescue_food.js
+
+# Test 3: PayPal Sandbox integration (Create order, Capture payment):
+node test_paypal.js
+
+# Test 4: End-to-End ML + Express test:
 node test_e2e.js
 ```
