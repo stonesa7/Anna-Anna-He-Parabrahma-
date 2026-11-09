@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import OrderFoodSection from './components/OrderFoodSection';
 import RescueFoodSection from './components/RescueFoodSection';
 import AiPredictionWidget from './components/AiPredictionWidget';
+import ModelRetrainWidget from './components/ModelRetrainWidget';
 import CartModal from './components/CartModal';
 import ImpactStats from './components/ImpactStats';
 
@@ -110,8 +111,13 @@ function App() {
             </div>
 
             <div onClick={() => setActiveTab('ai')} style={{ cursor: 'pointer' }}>
-              <h2>🤖 AI Powered</h2>
-              <p>Smart demand prediction to eliminate commercial waste.</p>
+              <h2>🤖 AI Demand Forecast</h2>
+              <p>Predict sales demand to eliminate commercial waste.</p>
+            </div>
+
+            <div onClick={() => setActiveTab('retrain')} style={{ cursor: 'pointer' }}>
+              <h2>🧠 Retrain With Real Data</h2>
+              <p>Log restaurant sales and dynamically update the ML model.</p>
             </div>
           </section>
 
@@ -134,6 +140,10 @@ function App() {
 
       {activeTab === 'ai' && (
         <AiPredictionWidget />
+      )}
+
+      {activeTab === 'retrain' && (
+        <ModelRetrainWidget />
       )}
 
       {/* 3. Cart & PayPal Checkout Modal */}

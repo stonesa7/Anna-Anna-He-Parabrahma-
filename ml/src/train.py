@@ -10,6 +10,7 @@ Why Random Forest?
 """
 
 import os
+import sys
 import joblib
 import numpy as np
 import pandas as pd
@@ -19,6 +20,9 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 def train_model(data_path: str, model_save_path: str):
     """
@@ -47,10 +51,7 @@ def train_model(data_path: str, model_save_path: str):
     # -------------------------------------------------------------
     print("\n[2/5] Defining features and target...")
     
-    # Categorical features: text descriptions that must be converted to numbers
     categorical_features = ["item_name", "category"]
-
-    # Numerical features: quantitative metrics
     numerical_features = [
         "original_price",
         "discount_percent",
@@ -74,8 +75,6 @@ def train_model(data_path: str, model_save_path: str):
     # -------------------------------------------------------------
     # Step 3: Split into Training (80%) and Test (20%) sets
     # -------------------------------------------------------------
-    # We keep 20% of data hidden from the model during training so we can
-    # test how accurately it predicts on unseen data.
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.20, random_state=42
     )
@@ -84,10 +83,6 @@ def train_model(data_path: str, model_save_path: str):
     # -------------------------------------------------------------
     # Step 4: Build Preprocessing and Modeling Pipeline
     # -------------------------------------------------------------
-    # We use a ColumnTransformer:
-    # - OneHotEncoder converts categorical strings into binary flags (0 or 1).
-    #   handle_unknown='ignore' ensures safe predictions even if a new item is encountered.
-    # - 'passthrough' keeps numerical features as-is.
     preprocessor = ColumnTransformer(
         transformers=[
             ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features),
@@ -95,10 +90,6 @@ def train_model(data_path: str, model_save_path: str):
         ]
     )
 
-    # Random Forest Regressor:
-    # - n_estimators=100: builds 100 diverse decision trees
-    # - max_depth=12: prevents individual trees from growing too deep (controls overfitting)
-    # - min_samples_split=4: requires at least 4 samples to split a leaf
     regressor = RandomForestRegressor(
         n_estimators=100,
         max_depth=12,
@@ -107,8 +98,6 @@ def train_model(data_path: str, model_save_path: str):
         n_jobs=-1
     )
 
-    # Scikit-learn Pipeline connects preprocessing directly to the model.
-    # This prevents data leakage and makes inference simple (one call to predict).
     pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
         ("regressor", regressor)
@@ -124,23 +113,15 @@ def train_model(data_path: str, model_save_path: str):
     print("\n[5/5] Evaluating performance on test set...")
     y_pred = pipeline.predict(X_test)
 
-    # Metrics explained:
-    # 1. MAE (Mean Absolute Error): Average difference in units between predicted and actual.
-    #    Example: MAE = 2.0 means our predictions are off by only ~2 food units on average.
     mae = mean_absolute_error(y_test, y_pred)
-
-    # 2. RMSE (Root Mean Squared Error): Penalizes larger errors more heavily.
     rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-
-    # 3. R2 Score (Coefficient of Determination): Proportion of variance explained.
-    #    1.0 is a perfect model; > 0.85 indicates a very strong model.
     r2 = r2_score(y_test, y_pred)
 
     print("-" * 50)
     print(" Evaluation Metrics on Unseen Test Data:")
-    print(f"  • Mean Absolute Error (MAE)  : {mae:.2f} units")
-    print(f"  • Root Mean Squared Error    : {rmse:.2f} units")
-    print(f"  • R-squared (R2 Score)       : {r2:.4f} ({r2 * 100:.1f}% variance explained)")
+    print(f"  * Mean Absolute Error (MAE)  : {mae:.2f} units")
+    print(f"  * Root Mean Squared Error    : {rmse:.2f} units")
+    print(f"  * R-squared (R2 Score)       : {r2:.4f} ({r2 * 100:.1f}% variance explained)")
     print("-" * 50)
 
     # Save trained model pipeline artifact
@@ -149,22 +130,27 @@ def train_model(data_path: str, model_save_path: str):
     print(f"\n[SAVED] Trained model saved to: {model_save_path}")
 
     # Inspect Feature Importances
-    # Extract feature names after One-Hot Encoding
     ohe_categories = pipeline.named_steps["preprocessor"].named_transformers_["cat"].get_feature_names_out(categorical_features)
     all_feature_names = list(ohe_categories) + numerical_features
     importances = pipeline.named_steps["regressor"].feature_importances_
 
-    # Sort and display top 8 most influential features
-    top_indices = np.argsort(importances)[::-1][:8]
+    top_indices = np.argsort(importances)[::-1][:6]
+    top_factors = []
     print("\nTop Influential Demand Factors:")
     for rank, idx in enumerate(top_indices, start=1):
-        print(f"  {rank}. {all_feature_names[idx]:<30} : {importances[idx] * 100:.1f}% impact")
+        factor_name = str(all_feature_names[idx])
+        pct = round(float(importances[idx] * 100), 1)
+        top_factors.append({"factor": factor_name, "impact_percent": pct})
+        print(f"  {rank}. {factor_name:<30} : {pct}% impact")
 
     print("\n" + "=" * 60)
     return {
         "mae": round(mae, 2),
         "rmse": round(rmse, 2),
-        "r2": round(r2, 4)
+        "r2": round(r2, 4),
+        "total_samples": len(df),
+        "test_samples": len(X_test),
+        "top_factors": top_factors
     }
 
 if __name__ == "__main__":
@@ -173,4 +159,3 @@ if __name__ == "__main__":
     model_output_file = os.path.join(base_dir, "models", "demand_model.joblib")
 
     train_model(dataset_file, model_output_file)
-

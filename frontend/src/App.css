@@ -1139,3 +1139,201 @@
   margin-bottom: 15px;
   text-align: center;
 }
+
+
+/* ========================================================
+   MODEL RETRAINING & CONTINUOUS LEARNING WIDGET STYLES
+   ======================================================== */
+
+.model-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+  margin-bottom: 35px;
+}
+
+.stat-card {
+  background: #fffaf0;
+  border: 1px solid #d4c2ab;
+  border-radius: 16px;
+  padding: 22px;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(60, 40, 20, 0.05);
+}
+
+.stat-value {
+  font-size: 34px;
+  font-weight: 900;
+  color: #27834f;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #183d2b;
+}
+
+.stat-sub {
+  font-size: 11px;
+  color: #8c7865;
+  margin-top: 4px;
+}
+
+.retrain-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+@media (max-width: 900px) {
+  .retrain-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tool-card {
+  background: #fffaf0;
+  border: 1px solid #d4c2ab;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 6px 20px rgba(60, 40, 20, 0.07);
+}
+
+.tool-card h3 {
+  font-size: 20px;
+  color: #183d2b;
+  margin-bottom: 6px;
+}
+
+.tool-subtitle {
+  font-size: 13px;
+  color: #716453;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.highlight-input {
+  background: #fdf6ec;
+  border: 1px solid #fbd38d;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.highlight-input label {
+  color: #c05621;
+}
+
+.big-input {
+  font-size: 18px;
+  font-weight: 800;
+  color: #27834f;
+}
+
+.log-btn {
+  background: #27834f;
+  color: white;
+  border: none;
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 10px;
+  transition: 0.25s;
+}
+
+.log-btn:hover {
+  background: #1f673e;
+}
+
+.retrain-cta-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.retrain-benefits {
+  background: #f4efe6;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.benefit-item {
+  font-size: 13px;
+  color: #27834f;
+  font-weight: 700;
+}
+
+.big-retrain-btn {
+  background: linear-gradient(135deg, #e87936, #cf6026);
+  color: white;
+  border: none;
+  padding: 18px 24px;
+  border-radius: 14px;
+  font-weight: 900;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(232, 121, 54, 0.35);
+  transition: transform 0.25s, box-shadow 0.25s;
+  width: 100%;
+}
+
+.big-retrain-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(232, 121, 54, 0.45);
+}
+
+.success-banner {
+  background: #e8f4ed;
+  color: #27834f;
+  border: 1px solid #9ae6b4;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 16px;
+}
+
+.retrain-success-box {
+  animation: pulse 1s ease;
+}
+
+.feature-importance-box {
+  margin-top: 25px;
+  background: #fdfaf5;
+  border: 1px solid #e5d3bc;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.feature-importance-box h4 {
+  font-size: 13px;
+  color: #183d2b;
+  margin-bottom: 10px;
+}
+
+.importance-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #65452f;
+  padding: 4px 0;
+  border-bottom: 1px dashed #e8d7c2;
+}
+
+.importance-row:last-child {
+  border-bottom: none;
+}

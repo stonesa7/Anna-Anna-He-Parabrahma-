@@ -33,6 +33,12 @@ export default function Navbar({ activeTab, setActiveTab, cartCount, onOpenCart 
         >
           🤖 AI Predictor
         </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === 'retrain' ? 'active' : ''}`}
+          onClick={() => setActiveTab('retrain')}
+        >
+          🧠 Retrain AI
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

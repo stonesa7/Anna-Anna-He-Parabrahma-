@@ -31,6 +31,15 @@ def get_model(model_path: str = _DEFAULT_MODEL_PATH):
         _LOADED_MODEL = joblib.load(model_path)
     return _LOADED_MODEL
 
+def reload_model(model_path: str = _DEFAULT_MODEL_PATH):
+    """
+    Reloads the model artifact from disk, updating the in-memory cache.
+    Called immediately after dynamic model retraining.
+    """
+    global _LOADED_MODEL
+    _LOADED_MODEL = joblib.load(model_path)
+    return _LOADED_MODEL
+
 def prepare_input_dataframe(item_data: Union[Dict[str, Any], List[Dict[str, Any]]]) -> pd.DataFrame:
     """
     Validates and enriches input dictionary into the format required by the model.
@@ -75,13 +84,6 @@ def prepare_input_dataframe(item_data: Union[Dict[str, Any], List[Dict[str, Any]
 def predict_demand(item_data: Union[Dict[str, Any], List[Dict[str, Any]]], model_path: str = _DEFAULT_MODEL_PATH) -> List[Dict[str, Any]]:
     """
     Estimate the number of units expected to sell.
-    
-    Parameters:
-        item_data: A dictionary or list of dictionaries containing food item features.
-        model_path: Optional path to custom model artifact.
-        
-    Returns:
-        List of prediction result dictionaries.
     """
     model = get_model(model_path)
     df = prepare_input_dataframe(item_data)
@@ -119,14 +121,13 @@ def predict_demand(item_data: Union[Dict[str, Any], List[Dict[str, Any]]], model
     return results
 
 if __name__ == "__main__":
-    # Quick sanity test
     test_sample = {
         "item_name": "Veg Biryani",
         "category": "Main Course",
         "original_price": 180,
         "discount_percent": 40,
-        "day_of_week": 4,      # Friday
-        "hour_of_day": 20,     # 8 PM dinner
+        "day_of_week": 4,
+        "hour_of_day": 20,
         "shelf_life_hours_left": 4,
         "historical_average_demand": 24
     }
@@ -134,4 +135,3 @@ if __name__ == "__main__":
     prediction = predict_demand(test_sample)
     print("\n[TEST] Sample Prediction Result:")
     print(prediction[0])
-

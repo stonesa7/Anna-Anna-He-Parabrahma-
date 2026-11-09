@@ -1,61 +1,55 @@
 /**
- * FoodLoop AI (Anna) - Demand Prediction Routes
- * ============================================
- * Express route handlers that expose the demand prediction API to clients
- * (e.g., restaurant dashboard or inventory manager) and communicate with
- * the Python ML inference microservice.
+ * FoodLoop AI (Anna) - Demand Prediction & Dynamic Retraining Routes
+ * ================================================================
+ * Express route handlers that:
+ * 1. Serve demand predictions from Python ML microservice
+ * 2. Log real customer sales and restaurant surplus data
+ * 3. Trigger dynamic model retraining with updated user data
+ * 4. Report model accuracy and dataset sample metrics
  */
 
 const express = require("express");
 const router = express.Router();
 
-// URL of the Python ML microservice (default: http://127.0.0.1:5001)
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://127.0.0.1:5001";
 
 /**
- * Helper function to forward requests to the Python ML microservice.
- * Uses native fetch (standard in Node.js 18+ and 24+).
+ * Helper to call Python ML service
  */
-async function callMLService(endpoint, bodyData) {
+async function callMLService(endpoint, bodyData, method = "POST") {
     const url = `${ML_SERVICE_URL}${endpoint}`;
     try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(bodyData)
-        });
-
-        const data = await response.json();
-        return {
-            status: response.status,
-            data
+        const options = {
+            method,
+            headers: { "Content-Type": "application/json" }
         };
+        if (bodyData && method !== "GET") {
+            options.body = JSON.stringify(bodyData);
+        }
+
+        const response = await fetch(url, options);
+        const data = await response.json();
+        return { status: response.status, data };
     } catch (err) {
         if (err.cause && (err.cause.code === "ECONNREFUSED" || err.cause.code === "ENOTFOUND")) {
             return {
                 status: 503,
                 data: {
                     success: false,
-                    error: "ML Inference Service is offline.",
-                    hint: "Please ensure the Python microservice is running at " + ML_SERVICE_URL + " by executing: python ml/service/app.py"
+                    error: "ML Service offline.",
+                    hint: `Run: python ml/service/app.py to start ML microservice on port 5001.`
                 }
             };
         }
         return {
             status: 500,
-            data: {
-                success: false,
-                error: `Failed to communicate with ML service: ${err.message}`
-            }
+            data: { success: false, error: `Failed to communicate with ML service: ${err.message}` }
         };
     }
 }
 
 /**
  * GET /api/demand/status
- * Check if the Python ML microservice is online and healthy.
  */
 router.get("/status", async (req, res) => {
     try {
@@ -63,43 +57,36 @@ router.get("/status", async (req, res) => {
         const data = await response.json();
         return res.json({
             success: true,
-            message: "Connected to FoodLoop ML inference service.",
+            message: "Connected to FoodLoop ML service.",
             ml_service: data
         });
     } catch (err) {
         return res.status(503).json({
             success: false,
-            message: "Cannot connect to ML inference service.",
-            error: err.message,
+            message: "Cannot connect to ML service.",
             hint: "Run: python ml/service/app.py"
         });
     }
 });
 
 /**
+ * GET /api/demand/model-info
+ * Returns sample count and algorithm details.
+ */
+router.get("/model-info", async (req, res) => {
+    const mlResponse = await callMLService("/model-info", null, "GET");
+    return res.status(mlResponse.status).json(mlResponse.data);
+});
+
+/**
  * POST /api/demand/predict
- * Estimate sales units for a single food item.
- *
- * Example Request Body:
- * {
- *   "item_name": "Veg Biryani",
- *   "category": "Main Course",
- *   "original_price": 180,
- *   "discount_percent": 40,
- *   "day_of_week": 5,
- *   "hour_of_day": 20,
- *   "shelf_life_hours_left": 4,
- *   "historical_average_demand": 24
- * }
  */
 router.post("/predict", async (req, res) => {
     const { item_name, original_price } = req.body;
-
-    // Beginner-friendly request validation
     if (!item_name || original_price === undefined) {
         return res.status(400).json({
             success: false,
-            error: "Validation error: 'item_name' and 'original_price' are required fields."
+            error: "Validation error: 'item_name' and 'original_price' are required."
         });
     }
 
@@ -109,23 +96,13 @@ router.post("/predict", async (req, res) => {
 
 /**
  * POST /api/demand/batch-predict
- * Estimate sales units for multiple food items at once.
- *
- * Example Request Body:
- * {
- *   "items": [
- *     { "item_name": "Veg Biryani", "original_price": 180, ... },
- *     { "item_name": "Chocolate Croissant", "original_price": 95, ... }
- *   ]
- * }
  */
 router.post("/batch-predict", async (req, res) => {
     const { items } = req.body;
-
     if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({
             success: false,
-            error: "Validation error: 'items' must be a non-empty array of food items."
+            error: "Validation error: 'items' must be a non-empty array."
         });
     }
 
@@ -133,5 +110,32 @@ router.post("/batch-predict", async (req, res) => {
     return res.status(mlResponse.status).json(mlResponse.data);
 });
 
-module.exports = router;
+/**
+ * POST /api/demand/log-sale
+ * Takes real sales / completed order data and appends it to the ML training dataset!
+ */
+router.post("/log-sale", async (req, res) => {
+    const { item_name, units_sold } = req.body;
+    if (!item_name || units_sold === undefined) {
+        return res.status(400).json({
+            success: false,
+            error: "Validation error: 'item_name' and 'units_sold' are required to log sales."
+        });
+    }
 
+    const mlResponse = await callMLService("/log-data", req.body);
+    return res.status(mlResponse.status).json(mlResponse.data);
+});
+
+/**
+ * POST /api/demand/retrain
+ * Retrains the Random Forest Regressor on the accumulated dataset
+ * so the platform adapts to real-world sales patterns!
+ */
+router.post("/retrain", async (req, res) => {
+    console.log("[BACKEND] Forwarding request to retrain AI Demand model...");
+    const mlResponse = await callMLService("/retrain", {});
+    return res.status(mlResponse.status).json(mlResponse.data);
+});
+
+module.exports = router;
