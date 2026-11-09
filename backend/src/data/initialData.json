@@ -86,11 +86,11 @@
       "originalPrice": 80,
       "isVegetarian": true,
       "inStock": true,
-      "isSurplus": false,
-      "discountPercent": 0,
-      "discountedPrice": 80,
-      "shelfLifeHoursLeft": 8,
-      "availableQuantity": 30
+      "isSurplus": true,
+      "discountPercent": 50,
+      "discountedPrice": 40,
+      "shelfLifeHoursLeft": 3,
+      "availableQuantity": 8
     },
     {
       "id": "food_201",
@@ -101,11 +101,11 @@
       "originalPrice": 240,
       "isVegetarian": false,
       "inStock": true,
-      "isSurplus": false,
-      "discountPercent": 0,
-      "discountedPrice": 240,
-      "shelfLifeHoursLeft": 10,
-      "availableQuantity": 28
+      "isSurplus": true,
+      "discountPercent": 40,
+      "discountedPrice": 144,
+      "shelfLifeHoursLeft": 4,
+      "availableQuantity": 12
     },
     {
       "id": "food_202",
@@ -116,11 +116,11 @@
       "originalPrice": 120,
       "isVegetarian": true,
       "inStock": true,
-      "isSurplus": false,
-      "discountPercent": 0,
-      "discountedPrice": 120,
-      "shelfLifeHoursLeft": 6,
-      "availableQuantity": 22
+      "isSurplus": true,
+      "discountPercent": 45,
+      "discountedPrice": 66,
+      "shelfLifeHoursLeft": 2,
+      "availableQuantity": 6
     },
     {
       "id": "food_301",
@@ -131,11 +131,11 @@
       "originalPrice": 95,
       "isVegetarian": true,
       "inStock": true,
-      "isSurplus": false,
-      "discountPercent": 0,
-      "discountedPrice": 95,
-      "shelfLifeHoursLeft": 12,
-      "availableQuantity": 15
+      "isSurplus": true,
+      "discountPercent": 50,
+      "discountedPrice": 48,
+      "shelfLifeHoursLeft": 3,
+      "availableQuantity": 7
     },
     {
       "id": "food_302",
@@ -161,12 +161,11 @@
       "originalPrice": 110,
       "isVegetarian": true,
       "inStock": true,
-      "isSurplus": false,
-      "discountPercent": 0,
-      "discountedPrice": 110,
-      "shelfLifeHoursLeft": 5,
-      "availableQuantity": 12
+      "isSurplus": true,
+      "discountPercent": 60,
+      "discountedPrice": 44,
+      "shelfLifeHoursLeft": 2,
+      "availableQuantity": 5
     }
   ]
 }
-

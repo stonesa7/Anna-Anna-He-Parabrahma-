@@ -12,6 +12,7 @@ const { connectDB, getDBStatus } = require("./config/db");
 const demandRoutes = require("./routes/demandRoutes");
 const restaurantRoutes = require("./routes/restaurantRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const rescueRoutes = require("./routes/rescueRoutes");
 
 const app = express();
 
@@ -37,6 +38,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/demand", demandRoutes);             // ML Demand Prediction API
 app.use("/api/restaurants", restaurantRoutes);   // Restaurant listings & Menus
 app.use("/api/orders", orderRoutes);             // Customer Order placement & tracking
+app.use("/api/rescue", rescueRoutes);             // Rescue Food (Surplus Deals & AI Hook)
 
 // 404 Handler for undefined routes
 app.use((req, res) => {
@@ -64,6 +66,7 @@ if (require.main === module) {
         console.log(` • Health check: http://localhost:${PORT}/api/health`);
         console.log(` • Restaurants:  http://localhost:${PORT}/api/restaurants`);
         console.log(` • Orders:       http://localhost:${PORT}/api/orders`);
+        console.log(` • Rescue Food:  http://localhost:${PORT}/api/rescue/items`);
         console.log(` • Demand ML:    http://localhost:${PORT}/api/demand`);
         console.log(`====================================================`);
     });
