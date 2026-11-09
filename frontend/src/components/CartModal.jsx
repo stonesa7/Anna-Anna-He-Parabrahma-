@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onClearCart }) {
   const [customerName, setCustomerName] = useState('Anjali Patil');
@@ -6,8 +6,12 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
   const [loading, setLoading] = useState(false);
   const [orderReceipt, setOrderReceipt] = useState(null);
   const [error, setError] = useState(null);
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [paypalConfig, setPaypalConfig] = useState({ clientId: 'sb', hasRealCredentials: false });
+  const [activeOrderId, setActiveOrderId] = useState(null);
 
-  if (!isOpen) return null;
+  const paypalContainerRef = useRef(null);
+  const buttonsRendered = useRef(false);
 
   const totalAmount = cart.reduce((acc, it) => acc + it.price * it.quantity, 0);
   const totalSavings = cart.reduce((acc, it) => {
@@ -17,7 +21,139 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     return acc;
   }, 0);
 
-  const handlePayPalCheckout = async () => {
+  // Fetch PayPal Config from Backend
+  useEffect(() => {
+    fetch('http://localhost:5000/api/payments/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setPaypalConfig(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load Official PayPal SDK Script
+  useEffect(() => {
+    if (!isOpen || cart.length === 0) return;
+
+    const clientId = paypalConfig.clientId || 'sb';
+    const scriptId = 'paypal-sdk-script';
+
+    // Check if already injected
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD&components=buttons`;
+      script.async = true;
+      script.onload = () => setPaypalLoaded(true);
+      script.onerror = () => {
+        console.warn('PayPal SDK could not be loaded from CDN (check internet connection).');
+        setPaypalLoaded(false);
+      };
+      document.body.appendChild(script);
+    } else if (window.paypal) {
+      setPaypalLoaded(true);
+    }
+  }, [isOpen, cart.length, paypalConfig.clientId]);
+
+  // Render Official PayPal Smart Buttons when SDK is loaded
+  useEffect(() => {
+    if (!isOpen || !paypalLoaded || !window.paypal || !paypalContainerRef.current || cart.length === 0) {
+      return;
+    }
+
+    // Clear previous button render
+    paypalContainerRef.current.innerHTML = '';
+    buttonsRendered.current = true;
+
+    try {
+      window.paypal.Buttons({
+        style: {
+          layout: 'vertical',
+          color: 'gold',
+          shape: 'rect',
+          label: 'paypal',
+          height: 48
+        },
+        createOrder: async () => {
+          if (!customerName || !customerEmail) {
+            setError('Please provide your name and email before proceeding.');
+            throw new Error('Customer info missing');
+          }
+
+          setLoading(true);
+          setError(null);
+
+          // 1. Create order in Backend Database
+          const orderPayload = {
+            customerName,
+            customerEmail,
+            restaurantId: cart[0].restaurantId || 'rest_1',
+            items: cart.map(it => ({
+              foodItemId: it.foodItemId,
+              name: it.name,
+              price: it.price,
+              quantity: it.quantity,
+              isSurplus: it.isSurplus
+            }))
+          };
+
+          const orderRes = await fetch('http://localhost:5000/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderPayload)
+          });
+          const orderData = await orderRes.json();
+          const internalId = orderData.data._id;
+          setActiveOrderId(internalId);
+
+          // 2. Call backend to create PayPal Sandbox order
+          const paypalRes = await fetch('http://localhost:5000/api/payments/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: internalId, amount: totalAmount })
+          });
+          const paypalData = await paypalRes.json();
+          return paypalData.orderId;
+        },
+        onApprove: async (data) => {
+          // 3. User approved on PayPal! Capture payment in our backend
+          const captureRes = await fetch('http://localhost:5000/api/payments/capture-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paypalOrderId: data.orderID,
+              orderId: activeOrderId
+            })
+          });
+          const captureData = await captureRes.json();
+
+          setOrderReceipt({
+            orderId: activeOrderId || 'ORD-COMPLETE',
+            paypalTransactionId: captureData.data?.id || data.orderID,
+            totalPaid: totalAmount,
+            savings: totalSavings,
+            customer: customerName,
+            itemsCount: cart.length
+          });
+
+          onClearCart();
+          setLoading(false);
+        },
+        onError: (err) => {
+          console.error('[PAYPAL BUTTON ERROR]', err);
+          setError('PayPal checkout encountered an issue. You can also use Quick Sandbox Test Pay below.');
+          setLoading(false);
+        }
+      }).render(paypalContainerRef.current);
+    } catch (e) {
+      console.warn('Could not render PayPal buttons:', e);
+    }
+  }, [isOpen, paypalLoaded, cart.length, totalAmount, customerName, customerEmail]);
+
+  // Quick Sandbox Test Pay (Fallback)
+  const handleQuickSandboxPay = async () => {
     if (cart.length === 0) return;
     if (!customerName || !customerEmail) {
       setError('Please provide your name and email address.');
@@ -28,70 +164,45 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     setError(null);
 
     try {
-      // 1. Create order in Backend Database
-      const orderPayload = {
-        customerName,
-        customerEmail,
-        restaurantId: cart[0].restaurantId || 'rest_1',
-        items: cart.map(it => ({
-          foodItemId: it.foodItemId,
-          name: it.name,
-          price: it.price,
-          quantity: it.quantity,
-          isSurplus: it.isSurplus
-        }))
-      };
-
       const orderRes = await fetch('http://localhost:5000/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload)
+        body: JSON.stringify({
+          customerName,
+          customerEmail,
+          restaurantId: cart[0].restaurantId || 'rest_1',
+          items: cart.map(it => ({
+            foodItemId: it.foodItemId,
+            name: it.name,
+            price: it.price,
+            quantity: it.quantity,
+            isSurplus: it.isSurplus
+          }))
+        })
       });
       const orderData = await orderRes.json();
-
-      if (!orderData.success) {
-        throw new Error(orderData.error || 'Failed to initialize order.');
-      }
-
       const internalOrderId = orderData.data._id;
 
-      // 2. Initiate PayPal Order
       const paypalCreateRes = await fetch('http://localhost:5000/api/payments/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: internalOrderId,
-          amount: totalAmount,
-          currency: 'USD'
-        })
+        body: JSON.stringify({ orderId: internalOrderId, amount: totalAmount })
       });
       const paypalOrder = await paypalCreateRes.json();
 
-      if (!paypalOrder.success) {
-        throw new Error(paypalOrder.error || 'PayPal order creation failed.');
-      }
-
-      const paypalId = paypalOrder.orderId;
-
-      // 3. Capture Payment (Simulating immediate sandbox approval)
       const captureRes = await fetch('http://localhost:5000/api/payments/capture-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paypalOrderId: paypalId,
+          paypalOrderId: paypalOrder.orderId,
           orderId: internalOrderId
         })
       });
       const captureData = await captureRes.json();
 
-      if (!captureData.success) {
-        throw new Error(captureData.error || 'Payment capture failed.');
-      }
-
-      // Order Complete!
       setOrderReceipt({
         orderId: internalOrderId,
-        paypalTransactionId: captureData.data?.id || paypalId,
+        paypalTransactionId: captureData.data?.id || paypalOrder.orderId,
         totalPaid: totalAmount,
         savings: totalSavings,
         customer: customerName,
@@ -99,13 +210,14 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
       });
 
       onClearCart();
-
     } catch (err) {
       setError(err.message || 'Payment processing error.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="modal-backdrop">
@@ -131,7 +243,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
                   <span>Community Savings:</span> <strong>₹{orderReceipt.savings} saved!</strong>
                 </div>
               )}
-              <div className="receipt-line"><span>Pickup Status:</span> <span className="status-badge">READY FOR PREPARATION</span></div>
+              <div className="receipt-line"><span>PayPal Status:</span> <span className="status-badge">COMPLETED (SANDBOX)</span></div>
             </div>
 
             <button className="done-btn" onClick={() => { setOrderReceipt(null); onClose(); }}>
@@ -178,21 +290,23 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
 
                 <div className="cart-customer-fields">
                   <div className="input-group">
-                    <label>Your Name:</label>
+                    <label>Customer Name:</label>
                     <input
                       type="text"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="text-input"
+                      required
                     />
                   </div>
                   <div className="input-group">
-                    <label>Your Email:</label>
+                    <label>Customer Email:</label>
                     <input
                       type="email"
                       value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
                       className="text-input"
+                      required
                     />
                   </div>
                 </div>
@@ -204,13 +318,29 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
 
                 {error && <div className="error-banner">{error}</div>}
 
-                <div className="modal-actions">
+                {/* PayPal Smart Buttons Container */}
+                <div className="paypal-checkout-section">
+                  <div className="paypal-section-label">
+                    <span>💳 Official PayPal Sandbox Checkout</span>
+                  </div>
+
+                  {/* Official PayPal Buttons render here */}
+                  <div ref={paypalContainerRef} id="paypal-button-container" style={{ minHeight: '48px', marginBottom: '12px' }}>
+                    {!paypalLoaded && (
+                      <div style={{ textAlign: 'center', padding: '10px', fontSize: '13px', color: '#716453' }}>
+                        Loading PayPal Sandbox SDK...
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="or-divider"><span>OR QUICK TEST</span></div>
+
                   <button
-                    className="paypal-checkout-btn"
-                    onClick={handlePayPalCheckout}
+                    className="quick-sandbox-btn"
+                    onClick={handleQuickSandboxPay}
                     disabled={loading}
                   >
-                    {loading ? 'Processing via PayPal...' : '💳 Pay with PayPal Sandbox'}
+                    {loading ? 'Processing...' : '⚡ 1-Click Sandbox Test Pay (Bypass Popup)'}
                   </button>
                 </div>
               </>

@@ -1337,3 +1337,62 @@
 .importance-row:last-child {
   border-bottom: none;
 }
+
+
+/* ========================================================
+   REAL PAYPAL SANDBOX BUTTONS & QUICK TEST STYLING
+   ======================================================== */
+
+.paypal-checkout-section {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #e5d3bc;
+}
+
+.paypal-section-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #65452f;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.or-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 14px 0;
+  color: #a4917c;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.or-divider::before,
+.or-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dashed #d4c2ab;
+}
+
+.or-divider span {
+  padding: 0 10px;
+}
+
+.quick-sandbox-btn {
+  background: #f4efe6;
+  border: 1px solid #d4c2ab;
+  color: #65452f;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.quick-sandbox-btn:hover {
+  background: #e8d7c2;
+  color: #183d2b;
+}
