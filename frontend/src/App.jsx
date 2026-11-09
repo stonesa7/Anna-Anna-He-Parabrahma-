@@ -1,88 +1,151 @@
-import './App.css'
+import React, { useState } from 'react';
+import './App.css';
+import Navbar from './components/Navbar';
+import OrderFoodSection from './components/OrderFoodSection';
+import RescueFoodSection from './components/RescueFoodSection';
+import AiPredictionWidget from './components/AiPredictionWidget';
+import CartModal from './components/CartModal';
+import ImpactStats from './components/ImpactStats';
 
 function App() {
+  const [activeTab, setActiveTab] = useState('home');
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Add item to cart
+  const handleAddToCart = (item) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.foodItemId === item.foodItemId);
+      if (existing) {
+        return prev.map(i =>
+          i.foodItemId === item.foodItemId ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      }
+      return [...prev, { ...item, quantity: 1 }];
+    });
+    setIsCartOpen(true);
+  };
+
+  // Update item quantity
+  const handleUpdateQuantity = (foodItemId, delta) => {
+    setCart(prev => {
+      return prev
+        .map(i => {
+          if (i.foodItemId === foodItemId) {
+            const newQty = i.quantity + delta;
+            return newQty > 0 ? { ...i, quantity: newQty } : null;
+          }
+          return i;
+        })
+        .filter(Boolean);
+    });
+  };
+
+  const handleClearCart = () => setCart([]);
+
+  const totalCartCount = cart.reduce((acc, it) => acc + it.quantity, 0);
+
   return (
     <div className="app">
-      <nav className="navbar">
-        <div className="logo">
-          🌿 ANNA
-          <span>Anna He Purna Brahma</span>
-        </div>
+      {/* 1. Header Navigation */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        cartCount={totalCartCount}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
 
-        <div className="nav-links">
-          <a href="/">Home</a>
-          <a href="#order">Order Food</a>
-          <a href="#rescue">Rescue Food</a>
-          <a href="#about">About</a>
-        </div>
+      {/* 2. Main Content Based on Active Tab */}
+      {activeTab === 'home' && (
+        <>
+          <section className="hero">
+            <div className="hero-content">
+              <span className="tagline">🌱 AI-POWERED ZERO FOOD WASTE PLATFORM</span>
 
-        <button className="login-btn">Sign In</button>
-      </nav>
+              <h1>
+                Good Food.
+                <br />
+                <span>Brighter Tomorrows.</span>
+              </h1>
 
-      <section className="hero">
-        <div className="hero-content">
-          <span className="tagline">AI POWERED FOOD PLATFORM</span>
+              <p>
+                Order delicious meals from your favourite restaurants, rescue fresh surplus food at special discounts, and help build a world where no meal goes to waste.
+              </p>
 
-          <h1>
-            Good Food.
-            <br />
-            <span>Brighter Tomorrows.</span>
-          </h1>
+              <div className="hero-buttons">
+                <button className="order-btn" onClick={() => setActiveTab('order')}>
+                  🍽️ Order Food
+                </button>
+                <button className="rescue-btn" onClick={() => setActiveTab('rescue')}>
+                  🌱 Rescue Food (Surplus Deals)
+                </button>
+              </div>
 
-          <p>
-            Order delicious meals, rescue surplus food and help
-            build a world where no food goes to waste.
-          </p>
+              <p className="hero-note">
+                ✨ Pure Taste · ♻️ Zero Waste · 🤝 Community Impact
+              </p>
+            </div>
 
-          <div className="hero-buttons">
-            <button className="order-btn">Order Food</button>
-            <button className="rescue-btn">Rescue Food</button>
+            <div className="hero-image">
+              <img
+                src="/anna-food.png"
+                alt="Traditional Indian food platter"
+                className="hero-food-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            </div>
+          </section>
+
+          <section className="features" id="about">
+            <div onClick={() => setActiveTab('order')} style={{ cursor: 'pointer' }}>
+              <h2>🍽️ Order Food</h2>
+              <p>Freshly prepared meals from your favourite verified kitchens.</p>
+            </div>
+
+            <div onClick={() => setActiveTab('rescue')} style={{ cursor: 'pointer' }}>
+              <h2>🌱 Rescue Food</h2>
+              <p>Discover quality surplus meals with up to 60% discounts.</p>
+            </div>
+
+            <div onClick={() => setActiveTab('ai')} style={{ cursor: 'pointer' }}>
+              <h2>🤖 AI Powered</h2>
+              <p>Smart demand prediction to eliminate commercial waste.</p>
+            </div>
+          </section>
+
+          {/* Quick Preview of Rescue Food Deals */}
+          <div style={{ padding: '0 7% 40px' }}>
+            <RescueFoodSection onAddToCart={handleAddToCart} />
           </div>
 
-          <p className="hero-note">
-            Good Food • No Waste • Happier People
-          </p>
-        </div>
+          <ImpactStats />
+        </>
+      )}
 
-        <div className="hero-image">
-          <img
-  src="/anna-food.png"
-  alt="Traditional Indian food platter"
-  className="hero-food-image"
-/>
-        </div>
-      </section>
+      {activeTab === 'order' && (
+        <OrderFoodSection onAddToCart={handleAddToCart} />
+      )}
 
-      <section className="features" id="about">
-        <div>
-          <h2>🍽️ Order Food</h2>
-          <p>Freshly prepared meals from your favourite restaurants.</p>
-        </div>
+      {activeTab === 'rescue' && (
+        <RescueFoodSection onAddToCart={handleAddToCart} />
+      )}
 
-        <div>
-          <h2>🌱 Rescue Food</h2>
-          <p>Discover quality surplus food at special prices.</p>
-        </div>
+      {activeTab === 'ai' && (
+        <AiPredictionWidget />
+      )}
 
-        <div>
-          <h2>🤖 AI Powered</h2>
-          <p>Smart demand prediction to prevent food waste.</p>
-        </div>
-      </section>
-
-      <section className="impact">
-        <h2>Every Meal Makes a Difference</h2>
-        <p>Technology with a purpose. Food with a future.</p>
-
-        <div className="impact-stats">
-          <div><h3>10K+</h3><p>Meals Rescued</p></div>
-          <div><h3>500+</h3><p>Happy Customers</p></div>
-          <div><h3>100+</h3><p>Partner Restaurants</p></div>
-          <div><h3>50+</h3><p>NGOs Supported</p></div>
-        </div>
-      </section>
+      {/* 3. Cart & PayPal Checkout Modal */}
+      <CartModal
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        onUpdateQuantity={handleUpdateQuantity}
+        onClearCart={handleClearCart}
+      />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
