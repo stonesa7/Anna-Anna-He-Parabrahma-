@@ -49,6 +49,25 @@ async function callMLService(endpoint, bodyData, method = "POST") {
 }
 
 /**
+ * GET /api/demand
+ * Root endpoint overview for Demand ML route
+ */
+router.get("/", (req, res) => {
+    return res.json({
+        success: true,
+        message: "FoodLoop Demand ML API is running.",
+        endpoints: {
+            status: "GET /api/demand/status",
+            modelInfo: "GET /api/demand/model-info",
+            predict: "POST /api/demand/predict",
+            batchPredict: "POST /api/demand/batch-predict",
+            logSale: "POST /api/demand/log-sale",
+            retrain: "POST /api/demand/retrain"
+        }
+    });
+});
+
+/**
  * GET /api/demand/status
  */
 router.get("/status", async (req, res) => {
