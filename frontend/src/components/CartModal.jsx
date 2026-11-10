@@ -8,10 +8,18 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
   const [error, setError] = useState(null);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const [paypalConfig, setPaypalConfig] = useState({ clientId: 'sb', hasRealCredentials: false });
-  const [activeOrderId, setActiveOrderId] = useState(null);
 
   const paypalContainerRef = useRef(null);
-  const buttonsRendered = useRef(false);
+  const activeOrderIdRef = useRef(null);
+
+  // Refs to access current state values in async callbacks without triggering PayPal button re-renders on keystroke
+  const customerNameRef = useRef(customerName);
+  const customerEmailRef = useRef(customerEmail);
+  const cartRef = useRef(cart);
+
+  useEffect(() => { customerNameRef.current = customerName; }, [customerName]);
+  useEffect(() => { customerEmailRef.current = customerEmail; }, [customerEmail]);
+  useEffect(() => { cartRef.current = cart; }, [cart]);
 
   const totalAmount = cart.reduce((acc, it) => acc + it.price * it.quantity, 0);
   const totalSavings = cart.reduce((acc, it) => {
@@ -20,6 +28,13 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     }
     return acc;
   }, 0);
+
+  const totalAmountRef = useRef(totalAmount);
+  const totalSavingsRef = useRef(totalSavings);
+  useEffect(() => {
+    totalAmountRef.current = totalAmount;
+    totalSavingsRef.current = totalSavings;
+  }, [totalAmount, totalSavings]);
 
   // Fetch PayPal Config from Backend
   useEffect(() => {
@@ -40,7 +55,6 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     const clientId = paypalConfig.clientId || 'sb';
     const scriptId = 'paypal-sdk-script';
 
-    // Check if already injected
     if (!document.getElementById(scriptId)) {
       const script = document.createElement('script');
       script.id = scriptId;
@@ -63,9 +77,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
       return;
     }
 
-    // Clear previous button render
     paypalContainerRef.current.innerHTML = '';
-    buttonsRendered.current = true;
 
     try {
       window.paypal.Buttons({
@@ -77,7 +89,12 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
           height: 48
         },
         createOrder: async () => {
-          if (!customerName || !customerEmail) {
+          const currentName = customerNameRef.current;
+          const currentEmail = customerEmailRef.current;
+          const currentCart = cartRef.current;
+          const currentTotal = totalAmountRef.current;
+
+          if (!currentName || !currentEmail) {
             setError('Please provide your name and email before proceeding.');
             throw new Error('Customer info missing');
           }
@@ -87,10 +104,10 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
 
           // 1. Create order in Backend Database
           const orderPayload = {
-            customerName,
-            customerEmail,
-            restaurantId: cart[0].restaurantId || 'rest_1',
-            items: cart.map(it => ({
+            customerName: currentName,
+            customerEmail: currentEmail,
+            restaurantId: currentCart[0]?.restaurantId || 'rest_1',
+            items: currentCart.map(it => ({
               foodItemId: it.foodItemId,
               name: it.name,
               price: it.price,
@@ -106,36 +123,42 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
           });
           const orderData = await orderRes.json();
           const internalId = orderData.data._id;
-          setActiveOrderId(internalId);
+          activeOrderIdRef.current = internalId;
 
           // 2. Call backend to create PayPal Sandbox order
           const paypalRes = await fetch('http://localhost:5000/api/payments/create-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: internalId, amount: totalAmount })
+            body: JSON.stringify({ orderId: internalId, amount: currentTotal })
           });
           const paypalData = await paypalRes.json();
           return paypalData.orderId;
         },
         onApprove: async (data) => {
-          // 3. User approved on PayPal! Capture payment in our backend
+          const currentName = customerNameRef.current;
+          const currentTotal = totalAmountRef.current;
+          const currentSavings = totalSavingsRef.current;
+          const currentCart = cartRef.current;
+          const internalId = activeOrderIdRef.current;
+
+          // 3. User approved on PayPal! Capture payment in backend
           const captureRes = await fetch('http://localhost:5000/api/payments/capture-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               paypalOrderId: data.orderID,
-              orderId: activeOrderId
+              orderId: internalId
             })
           });
           const captureData = await captureRes.json();
 
           setOrderReceipt({
-            orderId: activeOrderId || 'ORD-COMPLETE',
+            orderId: internalId || 'ORD-COMPLETE',
             paypalTransactionId: captureData.data?.id || data.orderID,
-            totalPaid: totalAmount,
-            savings: totalSavings,
-            customer: customerName,
-            itemsCount: cart.length
+            totalPaid: currentTotal,
+            savings: currentSavings,
+            customer: currentName,
+            itemsCount: currentCart.length
           });
 
           onClearCart();
@@ -150,7 +173,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     } catch (e) {
       console.warn('Could not render PayPal buttons:', e);
     }
-  }, [isOpen, paypalLoaded, cart.length, totalAmount, customerName, customerEmail]);
+  }, [isOpen, paypalLoaded, cart.length === 0]);
 
   // Quick Sandbox Test Pay (Fallback)
   const handleQuickSandboxPay = async () => {
@@ -170,7 +193,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
         body: JSON.stringify({
           customerName,
           customerEmail,
-          restaurantId: cart[0].restaurantId || 'rest_1',
+          restaurantId: cart[0]?.restaurantId || 'rest_1',
           items: cart.map(it => ({
             foodItemId: it.foodItemId,
             name: it.name,
@@ -261,7 +284,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
               <>
                 <div className="cart-items-list">
                   {cart.map((item, idx) => (
-                    <div key={idx} className="cart-item-row">
+                    <div key={item.foodItemId || idx} className="cart-item-row">
                       <div className="cart-item-info">
                         <span className="cart-item-name">
                           {item.isSurplus ? '🌱 ' : '🍽️ '}{item.name}
