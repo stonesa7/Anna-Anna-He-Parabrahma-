@@ -3,12 +3,6 @@
  * =======================================
  * Dedicated endpoints for displaying, filtering, and listing surplus food
  * with discounts to reduce food waste.
- * 
- * Features:
- * - Display surplus items with original vs discounted price
- * - Filter by category, urgency (shelf-life), and discount percentage
- * - AI Hook: When a restaurant lists surplus food, it queries the Python ML
- *   demand prediction service to estimate expected sales volume and give advice.
  */
 
 const express = require("express");
@@ -35,7 +29,6 @@ async function queryMLDemandPrediction(itemData) {
             return data.data;
         }
     } catch (err) {
-        // ML service offline or unreachable - return null gracefully
         console.warn(`[RESCUE FOOD] ML service unreachable: ${err.message}`);
     }
     return null;
@@ -43,12 +36,6 @@ async function queryMLDemandPrediction(itemData) {
 
 /**
  * GET /api/rescue/items
- * Retrieve all active surplus food items.
- * Query params (optional):
- *   ?category=Bakery
- *   ?sortBy=urgency (sort by shelfLifeHoursLeft ascending)
- *   ?sortBy=discount (sort by discountPercent descending)
- *   ?maxPrice=100
  */
 router.get("/items", async (req, res) => {
     try {
@@ -60,8 +47,8 @@ router.get("/items", async (req, res) => {
             if (maxPrice) filter.discountedPrice = { $lte: Number(maxPrice) };
 
             let sortQuery = {};
-            if (sortBy === "urgency") sortQuery.shelfLifeHoursLeft = 1; // shortest shelf-life first
-            else if (sortBy === "discount") sortQuery.discountPercent = -1; // highest discount first
+            if (sortBy === "urgency") sortQuery.shelfLifeHoursLeft = 1;
+            else if (sortBy === "discount") sortQuery.discountPercent = -1;
 
             const items = await FoodItem.find(filter).sort(sortQuery).populate("restaurant", "name address city rating");
             return res.json({
@@ -82,7 +69,6 @@ router.get("/items", async (req, res) => {
             items = items.filter(item => item.discountedPrice <= Number(maxPrice));
         }
 
-        // Attach restaurant info
         items = items.map(item => {
             const rest = initialData.restaurants.find(r => r.id === item.restaurantId);
             return {
@@ -113,7 +99,6 @@ router.get("/items", async (req, res) => {
 
 /**
  * GET /api/rescue/items/:id
- * Retrieve details for a single surplus food deal.
  */
 router.get("/items/:id", async (req, res) => {
     try {
@@ -146,8 +131,6 @@ router.get("/items/:id", async (req, res) => {
 
 /**
  * POST /api/rescue/items
- * Restaurant lists a new surplus food item.
- * Connects to AI Demand Prediction model for instant sales forecast and guidance!
  */
 router.post("/items", async (req, res) => {
     try {
@@ -176,7 +159,6 @@ router.post("/items", async (req, res) => {
         const shelfHours = Number(shelfLifeHoursLeft || 4);
         const stockQty = Number(availableQuantity || 10);
 
-        // 1. Query the AI Demand Prediction Model
         const mlPayload = {
             item_name: name,
             category: category || "Main Course",
@@ -191,16 +173,12 @@ router.post("/items", async (req, res) => {
 
         const aiPrediction = await queryMLDemandPrediction(mlPayload);
 
-        // Formulate smart guidance for the restaurant owner
         let aiRecommendation = null;
         if (aiPrediction) {
             const predUnits = aiPrediction.predicted_units;
-            let advice = "";
-            if (predUnits >= stockQty) {
-                advice = `High demand expected (${predUnits} units). You are likely to sell out all ${stockQty} portions!`;
-            } else {
-                advice = `Moderate demand predicted (${predUnits} units). Consider increasing discount to ${Math.min(70, numericDiscount + 15)}% to prevent waste before closing.`;
-            }
+            let advice = predUnits >= stockQty
+                ? `High demand expected (${predUnits} units). You are likely to sell out all ${stockQty} portions!`
+                : `Moderate demand predicted (${predUnits} units). Consider increasing discount to ${Math.min(70, numericDiscount + 15)}% to prevent waste before closing.`;
 
             aiRecommendation = {
                 predicted_sales_units: predUnits,
@@ -214,7 +192,6 @@ router.post("/items", async (req, res) => {
             };
         }
 
-        // 2. Save Item (MongoDB or In-Memory)
         if (getDBStatus()) {
             const newItem = await FoodItem.create({
                 restaurant: restaurantId || null,
@@ -239,7 +216,6 @@ router.post("/items", async (req, res) => {
             });
         }
 
-        // In-Memory store
         const newItem = {
             id: `food_${Date.now()}`,
             restaurantId: restaurantId || "rest_1",
@@ -273,7 +249,6 @@ router.post("/items", async (req, res) => {
 
 /**
  * GET /api/rescue/stats
- * Platform-wide surplus food impact metrics.
  */
 router.get("/stats", (req, res) => {
     const surplusItems = initialData.foodItems.filter(i => i.isSurplus);

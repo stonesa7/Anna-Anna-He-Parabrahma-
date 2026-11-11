@@ -1,3 +1,15 @@
+
+import './App.css';
+import { Routes, Route } from 'react-router-dom';
+
+import Navbar from './components/Navbar';
+
+import Home from './pages/Home';
+import OrderFood from './pages/OrderFood';
+import RestaurantDetails from './pages/RestaurantDetails';
+import RescueFood from './pages/RescueFood';
+import About from './pages/About';
+import Checkout from './pages/Checkout';
 import React, { useState } from 'react';
 import './App.css';
 import Navbar from './components/Navbar';

@@ -1,7 +1,6 @@
 /**
- * FoodLoop AI (Anna — Anna He Parabrahma) - Backend Server
- * ========================================================
- * Main Node.js & Express application entry point.
+ * ANNA - Anna He Purna Brahma
+ * Backend Server
  */
 
 const express = require("express");
@@ -24,7 +23,10 @@ app.use(express.json());
 // Initialize Database connection on boot
 connectDB();
 
-// Health check endpoint
+// Initialize Database connection on boot
+
+
+// Health check
 app.get("/api/health", (req, res) => {
     res.json({
         success: true,
@@ -42,7 +44,10 @@ app.use("/api/orders", orderRoutes);             // Customer Order placement & t
 app.use("/api/rescue", rescueRoutes);             // Rescue Food (Surplus Deals & AI Hook)
 app.use("/api/payments", paymentRoutes);         // PayPal Sandbox Checkout
 
-// 404 Handler for undefined routes
+// Surplus Food and NGO API
+app.use("/api/rescue", rescueRoutes);
+
+// 404 Handler
 app.use((req, res) => {
     res.status(404).json({
         success: false,
@@ -53,6 +58,7 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
     console.error("[SERVER ERROR]", err);
+
     res.status(500).json({
         success: false,
         error: "Internal server error occurred."
