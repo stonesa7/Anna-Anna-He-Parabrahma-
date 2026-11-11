@@ -10,16 +10,8 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
   const [paypalConfig, setPaypalConfig] = useState({ clientId: 'sb', hasRealCredentials: false });
 
   const paypalContainerRef = useRef(null);
+  // Fix #1: Use a ref to store activeOrderId so onApprove reads the live value synchronously
   const activeOrderIdRef = useRef(null);
-
-  // Refs to access current state values in async callbacks without triggering PayPal button re-renders on keystroke
-  const customerNameRef = useRef(customerName);
-  const customerEmailRef = useRef(customerEmail);
-  const cartRef = useRef(cart);
-
-  useEffect(() => { customerNameRef.current = customerName; }, [customerName]);
-  useEffect(() => { customerEmailRef.current = customerEmail; }, [customerEmail]);
-  useEffect(() => { cartRef.current = cart; }, [cart]);
 
   const totalAmount = cart.reduce((acc, it) => acc + it.price * it.quantity, 0);
   const totalSavings = cart.reduce((acc, it) => {
@@ -28,13 +20,6 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
     }
     return acc;
   }, 0);
-
-  const totalAmountRef = useRef(totalAmount);
-  const totalSavingsRef = useRef(totalSavings);
-  useEffect(() => {
-    totalAmountRef.current = totalAmount;
-    totalSavingsRef.current = totalSavings;
-  }, [totalAmount, totalSavings]);
 
   // Fetch PayPal Config from Backend
   useEffect(() => {
@@ -62,7 +47,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
       script.async = true;
       script.onload = () => setPaypalLoaded(true);
       script.onerror = () => {
-        console.warn('PayPal SDK could not be loaded from CDN (check internet connection).');
+        console.warn('PayPal SDK could not be loaded from CDN.');
         setPaypalLoaded(false);
       };
       document.body.appendChild(script);
@@ -89,12 +74,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
           height: 48
         },
         createOrder: async () => {
-          const currentName = customerNameRef.current;
-          const currentEmail = customerEmailRef.current;
-          const currentCart = cartRef.current;
-          const currentTotal = totalAmountRef.current;
-
-          if (!currentName || !currentEmail) {
+          if (!customerName || !customerEmail) {
             setError('Please provide your name and email before proceeding.');
             throw new Error('Customer info missing');
           }
@@ -104,10 +84,10 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
 
           // 1. Create order in Backend Database
           const orderPayload = {
-            customerName: currentName,
-            customerEmail: currentEmail,
-            restaurantId: currentCart[0]?.restaurantId || 'rest_1',
-            items: currentCart.map(it => ({
+            customerName,
+            customerEmail,
+            restaurantId: cart[0].restaurantId || 'rest_1',
+            items: cart.map(it => ({
               foodItemId: it.foodItemId,
               name: it.name,
               price: it.price,
@@ -122,43 +102,44 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
             body: JSON.stringify(orderPayload)
           });
           const orderData = await orderRes.json();
-          const internalId = orderData.data._id;
+          const internalId = orderData.data?._id || orderData._id;
+
+          // Store in ref to guarantee synchronization in onApprove callback
           activeOrderIdRef.current = internalId;
 
           // 2. Call backend to create PayPal Sandbox order
           const paypalRes = await fetch('http://localhost:5000/api/payments/create-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: internalId, amount: currentTotal })
+            body: JSON.stringify({ orderId: internalId, amount: totalAmount })
           });
           const paypalData = await paypalRes.json();
+
+          if (!paypalData.success) {
+            throw new Error(paypalData.error || 'Failed to create PayPal order');
+          }
+
           return paypalData.orderId;
         },
         onApprove: async (data) => {
-          const currentName = customerNameRef.current;
-          const currentTotal = totalAmountRef.current;
-          const currentSavings = totalSavingsRef.current;
-          const currentCart = cartRef.current;
-          const internalId = activeOrderIdRef.current;
-
-          // 3. User approved on PayPal! Capture payment in backend
+          // 3. Capture payment on backend using synchronous ref value
           const captureRes = await fetch('http://localhost:5000/api/payments/capture-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               paypalOrderId: data.orderID,
-              orderId: internalId
+              orderId: activeOrderIdRef.current
             })
           });
           const captureData = await captureRes.json();
 
           setOrderReceipt({
-            orderId: internalId || 'ORD-COMPLETE',
+            orderId: activeOrderIdRef.current || 'ORD-COMPLETE',
             paypalTransactionId: captureData.data?.id || data.orderID,
-            totalPaid: currentTotal,
-            savings: currentSavings,
-            customer: currentName,
-            itemsCount: currentCart.length
+            totalPaid: totalAmount,
+            savings: totalSavings,
+            customer: customerName,
+            itemsCount: cart.length
           });
 
           onClearCart();
@@ -166,14 +147,14 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
         },
         onError: (err) => {
           console.error('[PAYPAL BUTTON ERROR]', err);
-          setError('PayPal checkout encountered an issue. You can also use Quick Sandbox Test Pay below.');
+          setError('PayPal checkout encountered an issue. You can use Quick Sandbox Test Pay below.');
           setLoading(false);
         }
       }).render(paypalContainerRef.current);
     } catch (e) {
       console.warn('Could not render PayPal buttons:', e);
     }
-  }, [isOpen, paypalLoaded, cart.length === 0]);
+  }, [isOpen, paypalLoaded, cart, totalAmount, customerName, customerEmail]);
 
   // Quick Sandbox Test Pay (Fallback)
   const handleQuickSandboxPay = async () => {
@@ -193,7 +174,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
         body: JSON.stringify({
           customerName,
           customerEmail,
-          restaurantId: cart[0]?.restaurantId || 'rest_1',
+          restaurantId: cart[0].restaurantId || 'rest_1',
           items: cart.map(it => ({
             foodItemId: it.foodItemId,
             name: it.name,
@@ -204,7 +185,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
         })
       });
       const orderData = await orderRes.json();
-      const internalOrderId = orderData.data._id;
+      const internalOrderId = orderData.data?._id || orderData._id;
 
       const paypalCreateRes = await fetch('http://localhost:5000/api/payments/create-order', {
         method: 'POST',
@@ -284,7 +265,7 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
               <>
                 <div className="cart-items-list">
                   {cart.map((item, idx) => (
-                    <div key={item.foodItemId || idx} className="cart-item-row">
+                    <div key={idx} className="cart-item-row">
                       <div className="cart-item-info">
                         <span className="cart-item-name">
                           {item.isSurplus ? '🌱 ' : '🍽️ '}{item.name}
@@ -341,13 +322,11 @@ export default function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onC
 
                 {error && <div className="error-banner">{error}</div>}
 
-                {/* PayPal Smart Buttons Container */}
                 <div className="paypal-checkout-section">
                   <div className="paypal-section-label">
                     <span>💳 Official PayPal Sandbox Checkout</span>
                   </div>
 
-                  {/* Official PayPal Buttons render here */}
                   <div ref={paypalContainerRef} id="paypal-button-container" style={{ minHeight: '48px', marginBottom: '12px' }}>
                     {!paypalLoaded && (
                       <div style={{ textAlign: 'center', padding: '10px', fontSize: '13px', color: '#716453' }}>
