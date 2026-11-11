@@ -1,35 +1,56 @@
-import React from "react";
-import { Link, NavLink } from "react-router-dom";
-import { useCart } from "../context/CartContext";
+import React from 'react';
 
-function Navbar() {
-    const { totalItems } = useCart();
+export default function Navbar({ activeTab, setActiveTab, cartCount, onOpenCart }) {
+  return (
+    <nav className="navbar">
+      <div 
+        className="logo" 
+        onClick={() => setActiveTab('home')} 
+        style={{ cursor: 'pointer' }}
+      >
+        🍲 ANNA
+        <span>Anna He Purna Brahma · FoodLoop AI</span>
+      </div>
 
-    return (
-        <nav className="navbar">
-            <div className="logo">
-                <h2>🌿 ANNA</h2>
-                <p>Anna He Purna Brahma · FoodLoop AI</p>
-            </div>
+      <div className="nav-links">
+        <button 
+          className={`nav-tab-btn ${activeTab === 'home' ? 'active' : ''}`}
+          onClick={() => setActiveTab('home')}
+        >
+          Home
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === 'order' ? 'active' : ''}`}
+          onClick={() => setActiveTab('order')}
+        >
+          🍽️ Order Food
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === 'rescue' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rescue')}
+        >
+          🌱 Rescue Food
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === 'ai' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ai')}
+        >
+          🤖 AI Predictor
+        </button>
+        <button 
+          className={`nav-tab-btn ${activeTab === 'retrain' ? 'active' : ''}`}
+          onClick={() => setActiveTab('retrain')}
+        >
+          🧠 Retrain AI
+        </button>
+      </div>
 
-            <div className="nav-links">
-                <NavLink to="/">Home</NavLink>
-                <NavLink to="/order">🍽️ Order Food</NavLink>
-                <NavLink to="/rescue">🌱 Rescue Food</NavLink>
-                <NavLink to="/ai">🤖 AI Predictor</NavLink>
-                <NavLink to="/retrain">🧠 Retrain AI</NavLink>
-                <NavLink to="/about">About</NavLink>
-
-                <Link to="/checkout" className="cart-nav-link">
-                    🛒 Cart ({totalItems})
-                </Link>
-            </div>
-
-            <button className="signin-btn">
-                Sign In
-            </button>
-        </nav>
-    );
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <button className="cart-badge-btn" onClick={onOpenCart}>
+          🛒 Cart <span className="cart-pill">{cartCount}</span>
+        </button>
+        <button className="login-btn">Sign In</button>
+      </div>
+    </nav>
+  );
 }
-
-export default Navbar;

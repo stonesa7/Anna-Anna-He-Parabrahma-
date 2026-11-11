@@ -1,24 +1,16 @@
-
-import './App.css';
-import { Routes, Route } from 'react-router-dom';
-
-import Navbar from './components/Navbar';
-
-import Home from './pages/Home';
-import OrderFood from './pages/OrderFood';
-import RestaurantDetails from './pages/RestaurantDetails';
-import RescueFood from './pages/RescueFood';
-import About from './pages/About';
-import Checkout from './pages/Checkout';
 import React, { useState } from 'react';
 import './App.css';
+
+// Navigation & Global Components
 import Navbar from './components/Navbar';
+import CartModal from './components/CartModal';
+import ImpactStats from './components/ImpactStats';
+
+// Tab Section Components
 import OrderFoodSection from './components/OrderFoodSection';
 import RescueFoodSection from './components/RescueFoodSection';
 import AiPredictionWidget from './components/AiPredictionWidget';
 import ModelRetrainWidget from './components/ModelRetrainWidget';
-import CartModal from './components/CartModal';
-import ImpactStats from './components/ImpactStats';
 
 function App() {
   const [activeTab, setActiveTab] = useState('home');
